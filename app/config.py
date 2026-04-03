@@ -22,6 +22,7 @@ def get_database_url() -> str:
 
 DATABASE_URL = get_database_url()
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+DB_SCHEMA = None if DATABASE_URL.startswith("sqlite") else os.getenv("DB_SCHEMA", "amlredflags_v2")
 MAX_PAGES_PER_SOURCE = int(os.getenv("MAX_PAGES_PER_SOURCE", "3"))
 
 SOURCES = [

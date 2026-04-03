@@ -1,7 +1,7 @@
 from sqlalchemy import MetaData, create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-from app.config import DATABASE_URL
+from app.config import DATABASE_URL, DB_SCHEMA
 
 
 NAMING_CONVENTION = {
@@ -14,7 +14,10 @@ NAMING_CONVENTION = {
 
 
 class Base(DeclarativeBase):
-    metadata = MetaData(naming_convention=NAMING_CONVENTION)
+    metadata = MetaData(
+        naming_convention=NAMING_CONVENTION,
+        schema=DB_SCHEMA,
+    )
 
 
 engine = create_engine(

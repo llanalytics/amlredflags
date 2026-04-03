@@ -10,7 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from app.config import get_database_url
+from app.config import DB_SCHEMA, get_database_url
 from app.database import Base
 from app import models  # noqa: F401
 
@@ -22,6 +22,7 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 VERSION_TABLE = "alembic_version_amlredflags_v2"
+VERSION_TABLE_SCHEMA = DB_SCHEMA
 
 
 def run_migrations_offline() -> None:
@@ -31,7 +32,9 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         compare_type=True,
+        include_schemas=bool(DB_SCHEMA),
         version_table=VERSION_TABLE,
+        version_table_schema=VERSION_TABLE_SCHEMA,
     )
 
     with context.begin_transaction():
@@ -50,7 +53,9 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
+            include_schemas=bool(DB_SCHEMA),
             version_table=VERSION_TABLE,
+            version_table_schema=VERSION_TABLE_SCHEMA,
         )
 
         with context.begin_transaction():
