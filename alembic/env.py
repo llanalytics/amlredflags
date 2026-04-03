@@ -3,7 +3,7 @@ from pathlib import Path
 import sys
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, text
 
 # Ensure project root is importable even when alembic is run outside repo root.
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -49,6 +49,10 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        if DB_SCHEMA:
+            connection.execute(text(f'CREATE SCHEMA IF NOT EXISTS "{DB_SCHEMA}"'))
+            connection.commit()
+
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
