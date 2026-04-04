@@ -1,6 +1,6 @@
 #!/bin/bash
 # Trigger AML Red Flags v2 batch processing.
-# Usage: ./scripts/trigger_batch.sh [api-base-url] [--monitor|--wait]
+# Usage: ./scripts/trigger_batch.sh [api-base-url|remote] [--monitor|--wait]
 
 set -euo pipefail
 
@@ -12,6 +12,16 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
+
+if [ "$API_BASE_URL" = "remote" ]; then
+  if [ -z "${AMLREDFLAGS_URL:-}" ]; then
+    echo -e "${RED}Error: AMLREDFLAGS_URL is not set.${NC}"
+    echo "Set it first, for example:"
+    echo "  export AMLREDFLAGS_URL=\"https://amlredflags-f7faf72ea2f9.herokuapp.com\""
+    exit 1
+  fi
+  API_BASE_URL="$AMLREDFLAGS_URL"
+fi
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}AML Red Flags v2 - Trigger Batch${NC}"
@@ -56,12 +66,20 @@ if [ "$MODE" = "--monitor" ] || [ "$MODE" = "--wait" ]; then
     RUNNING="$(echo "$STATUS" | jq -r '.running // false' 2>/dev/null || echo "false")"
     LAST_STATUS="$(echo "$STATUS" | jq -r '.last_status // "unknown"' 2>/dev/null || echo "unknown")"
     LAST_BATCH_ID="$(echo "$STATUS" | jq -r '.last_batch_id // "n/a"' 2>/dev/null || echo "n/a")"
+    LAST_FAILURE_REASON="$(echo "$STATUS" | jq -r '.last_failure_reason // empty' 2>/dev/null || echo "")"
 
     if [ "$RUNNING" = "true" ]; then
       if [ "$MODE" = "--monitor" ]; then
         echo -e "${YELLOW}Running...${NC} batch=$LAST_BATCH_ID status=$LAST_STATUS elapsed=${ELAPSED}s"
       fi
     else
+      if [ "$LAST_STATUS" = "failed" ]; then
+        echo -e "${RED}Complete with failure.${NC} batch=$LAST_BATCH_ID status=$LAST_STATUS"
+        if [ -n "$LAST_FAILURE_REASON" ]; then
+          echo "Reason: $LAST_FAILURE_REASON"
+        fi
+        exit 1
+      fi
       echo -e "${GREEN}Complete.${NC} batch=$LAST_BATCH_ID status=$LAST_STATUS"
       exit 0
     fi

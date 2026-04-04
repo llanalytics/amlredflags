@@ -17,6 +17,7 @@ class BatchRun(Base):
     items_fetched: Mapped[int] = mapped_column(Integer, default=0)
     flags_extracted: Mapped[int] = mapped_column(Integer, default=0)
     errors: Mapped[int] = mapped_column(Integer, default=0)
+    failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class SourceDocument(Base):

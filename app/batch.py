@@ -15,6 +15,11 @@ _batch_lock = threading.Lock()
 _active_batch_id: str | None = None
 
 
+def is_batch_running() -> bool:
+    with _batch_lock:
+        return _active_batch_id is not None
+
+
 def queue_batch_run() -> tuple[bool, str, str | None]:
     global _active_batch_id
     with _batch_lock:
@@ -28,6 +33,7 @@ def queue_batch_run() -> tuple[bool, str, str | None]:
             batch_id=batch_id,
             status="running",
             started_at=datetime.now(timezone.utc),
+            failure_reason=None,
         )
         db.add(run)
         db.commit()
@@ -51,6 +57,7 @@ def _run_batch(batch_id: str) -> None:
         items_fetched = 0
         flags_extracted = 0
         errors = 0
+        run.failure_reason = None
 
         for source in SOURCES:
             source_name = source["name"]
@@ -98,24 +105,36 @@ def _run_batch(batch_id: str) -> None:
 
                     items_fetched += 1
                     flags_extracted += len(matches)
-            except Exception:
+            except Exception as exc:
                 errors += 1
                 logger.exception("Source processing failed for %s (%s)", source_name, source_url)
                 db.rollback()
+                run = db.query(BatchRun).filter(BatchRun.batch_id == batch_id).first()
+                if run is not None:
+                    run.items_fetched = items_fetched
+                    run.flags_extracted = flags_extracted
+                    run.errors = errors
+                    run.status = "failed"
+                    run.ended_at = datetime.now(timezone.utc)
+                    run.failure_reason = f"{source_name}: {type(exc).__name__}: {exc}"[:4000]
+                    db.commit()
+                return
 
         run.items_fetched = items_fetched
         run.flags_extracted = flags_extracted
         run.errors = errors
         run.status = "completed_with_errors" if errors else "completed"
         run.ended_at = datetime.now(timezone.utc)
+        run.failure_reason = None
         db.commit()
-    except Exception:
+    except Exception as exc:
         logger.exception("Fatal batch failure for batch_id=%s", batch_id)
         db.rollback()
         run = db.query(BatchRun).filter(BatchRun.batch_id == batch_id).first()
         if run is not None:
             run.status = "failed"
             run.ended_at = datetime.now(timezone.utc)
+            run.failure_reason = f"{type(exc).__name__}: {exc}"[:4000]
             db.commit()
     finally:
         db.close()
