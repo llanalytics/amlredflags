@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 
 from app.analyzer import extract_red_flags
-from app.config import MAX_PAGES_PER_SOURCE, SOURCES
+from app.config import MAX_ARTICLES_PER_SOURCE, MAX_PAGES_PER_SOURCE, SOURCES
 from app.database import SessionLocal
 from app.fetcher import fetch_paginated_documents
 from app.models import BatchRun, RedFlag, SourceDocument
@@ -63,8 +63,13 @@ def _run_batch(batch_id: str) -> None:
             source_name = source["name"]
             source_url = source["url"]
             max_pages = int(source.get("max_pages", MAX_PAGES_PER_SOURCE))
+            max_articles = int(source.get("max_articles", MAX_ARTICLES_PER_SOURCE))
             try:
-                documents = fetch_paginated_documents(source_url, max_pages=max_pages)
+                documents = fetch_paginated_documents(
+                    source_url,
+                    max_pages=max_pages,
+                    max_articles=max_articles,
+                )
                 for document_url, title, text in documents:
                     existing = db.query(SourceDocument).filter(SourceDocument.url == document_url).first()
 

@@ -29,6 +29,7 @@ DATABASE_URL = get_database_url()
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 DB_SCHEMA = None if DATABASE_URL.startswith("sqlite") else os.getenv("DB_SCHEMA", "amlredflags_v2")
 MAX_PAGES_PER_SOURCE = int(os.getenv("MAX_PAGES_PER_SOURCE", "3"))
+MAX_ARTICLES_PER_SOURCE = int(os.getenv("MAX_ARTICLES_PER_SOURCE", "30"))
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
 OPENAI_TIMEOUT_SECONDS = int(os.getenv("OPENAI_TIMEOUT_SECONDS", "45"))
@@ -53,7 +54,7 @@ OPENAI_USER_PROMPT_TEMPLATE = os.getenv(
 RESET_API_TOKEN = os.getenv("RESET_API_TOKEN", "")
 
 SOURCES = [
-    {"name": "FinCEN News", "url": "https://www.fincen.gov/news", "max_pages": 3},
-    {"name": "FinCEN Enforcement", "url": "https://www.fincen.gov/news/enforcement-actions", "max_pages": 3},
-    {"name": "OCC Newsroom", "url": "https://www.occ.gov/news-events/newsroom", "max_pages": 3},
+    {"name": "FinCEN News", "url": "https://www.fincen.gov/news", "max_pages": 3, "max_articles": 30},
+    {"name": "FinCEN Enforcement", "url": "https://www.fincen.gov/news/enforcement-actions", "max_pages": 3, "max_articles": 30},
+    {"name": "OCC Newsroom", "url": "https://www.occ.gov/news-events/newsroom", "max_pages": 3, "max_articles": 30},
 ]
