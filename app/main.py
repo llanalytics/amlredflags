@@ -18,6 +18,7 @@ def health() -> HealthResponse:
     try:
         count = db.query(RedFlag).count()
         unique_sources = db.query(SourceDocument.source_name).distinct().count()
+        total_documents = db.query(SourceDocument).count()
         total_batches = db.query(BatchRun).count()
         latest = db.query(BatchRun).order_by(desc(BatchRun.id)).first()
         return HealthResponse(
@@ -25,6 +26,7 @@ def health() -> HealthResponse:
             status="healthy",
             red_flags_count=count,
             unique_sources_count=unique_sources,
+            total_documents_count=total_documents,
             total_batches_processed=total_batches,
             last_batch_id=latest.batch_id if latest else None,
             last_batch_status=latest.status if latest else None,

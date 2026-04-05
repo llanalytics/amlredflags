@@ -7,6 +7,7 @@ class HealthResponse(BaseModel):
     status: str
     red_flags_count: int
     unique_sources_count: int
+    total_documents_count: int
     total_batches_processed: int
     last_batch_id: str | None
     last_batch_status: str | None

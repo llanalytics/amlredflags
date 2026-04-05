@@ -6,11 +6,42 @@ set -euo pipefail
 
 API_BASE_URL="${1:-http://localhost:8001}"
 CONFIRM_FLAG="${2:-}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+ENV_FILE="$PROJECT_ROOT/.env"
 
 BLUE='\033[0;34m'
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m'
+
+# Load only needed keys from .env without shell-sourcing (safe with spaces in values).
+if [ -f "$ENV_FILE" ]; then
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      ""|\#*) continue
+        ;;
+    esac
+
+    key="${line%%=*}"
+    value="${line#*=}"
+    key="$(printf '%s' "$key" | tr -d '[:space:]')"
+    value="${value%$'\r'}"
+
+    case "$key" in
+      RESET_API_TOKEN)
+        if [ -z "${RESET_API_TOKEN:-}" ]; then
+          RESET_API_TOKEN="$value"
+        fi
+        ;;
+      AMLREDFLAGS_URL)
+        if [ -z "${AMLREDFLAGS_URL:-}" ]; then
+          AMLREDFLAGS_URL="$value"
+        fi
+        ;;
+    esac
+  done < "$ENV_FILE"
+fi
 
 if [ "$API_BASE_URL" = "remote" ]; then
   if [ -z "${AMLREDFLAGS_URL:-}" ]; then
