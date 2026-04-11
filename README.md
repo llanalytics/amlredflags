@@ -34,6 +34,14 @@ on each source and global `MAX_PAGES_PER_SOURCE` in `.env`).
 
 ## Utility Scripts
 ```bash
+# Migrate DB safely (auto decides upgrade vs stamp)
+./scripts/migrate_db.sh local
+./scripts/migrate_db.sh remote
+
+# Move amlredflags tables to a dedicated Postgres schema
+./scripts/migrate_to_schema.sh remote public amlredflags
+./scripts/migrate_to_schema.sh remote public amlredflags --execute
+
 # Check current batch and health
 ./scripts/check_batch.sh
 
@@ -51,11 +59,10 @@ heroku config:set OPENAI_API_KEY=... -a amlredflags-v2
 git push heroku main
 ```
 
-For shared-database deployment (same Postgres as `amlInsights`), set:
+For shared-database deployment (same Postgres as `amlInsights`), set a dedicated schema:
 ```bash
-heroku config:set DB_SCHEMA=amlredflags_v2 -a amlredflags-v2
+heroku config:set DB_SCHEMA=amlredflags -a amlredflags-v2
 ```
-This keeps v2 tables isolated from other modules in the same physical database.
 
 `Procfile` runs migrations during release:
 - `release: alembic upgrade head`

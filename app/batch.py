@@ -1,6 +1,7 @@
 import logging
 import threading
 import uuid
+import json
 from datetime import datetime, timezone
 
 from app.analyzer import extract_red_flags
@@ -102,6 +103,8 @@ def _run_batch(batch_id: str) -> None:
                                 severity=match["severity"],
                                 text=match["text"],
                                 confidence_score=match["confidence_score"],
+                                product_tags_json=json.dumps(match.get("product_tags", []), separators=(",", ":")),
+                                service_tags_json=json.dumps(match.get("service_tags", []), separators=(",", ":")),
                             )
                         )
 
