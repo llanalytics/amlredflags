@@ -1,4 +1,3 @@
-import json
 import os
 from pathlib import Path
 
@@ -41,29 +40,13 @@ def _csv_list_env(name: str, default_values: list[str]) -> list[str]:
     return out or default_values
 
 
-def _json_dict_env(name: str, default_value: dict[str, str]) -> dict[str, str]:
-    raw = os.getenv(name, "").strip()
-    if not raw:
-        return default_value
-    try:
-        parsed = json.loads(raw)
-    except json.JSONDecodeError:
-        return default_value
-    if not isinstance(parsed, dict):
-        return default_value
-
-    normalized: dict[str, str] = {}
-    for k, v in parsed.items():
-        key = str(k).strip().lower().replace(" ", "_")
-        value = str(v).strip().lower().replace(" ", "_")
-        if key and value:
-            normalized[key] = value
-    return normalized or default_value
-
-
 DATABASE_URL = get_database_url()
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
-DB_SCHEMA = None if DATABASE_URL.startswith("sqlite") else os.getenv("DB_SCHEMA", "amlredflags_v2")
+_raw_db_schema = os.getenv("DB_SCHEMA", "amlredflags_v2").strip().strip("'\"")
+if DATABASE_URL.startswith("sqlite") or _raw_db_schema.lower() in {"", "none", "null"}:
+    DB_SCHEMA = None
+else:
+    DB_SCHEMA = _raw_db_schema
 MAX_PAGES_PER_SOURCE = int(os.getenv("MAX_PAGES_PER_SOURCE", "3"))
 MAX_ARTICLES_PER_SOURCE = int(os.getenv("MAX_ARTICLES_PER_SOURCE", "30"))
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
@@ -104,10 +87,85 @@ DEFAULT_CATEGORY_SYNONYMS = {
 }
 
 ALLOWED_CATEGORY_CODES = _csv_list_env("ALLOWED_CATEGORY_CODES", DEFAULT_CATEGORY_CODES)
-CATEGORY_SYNONYMS = _json_dict_env("CATEGORY_SYNONYMS_JSON", DEFAULT_CATEGORY_SYNONYMS)
+CATEGORY_SYNONYMS = DEFAULT_CATEGORY_SYNONYMS
 CATEGORY_FALLBACK = os.getenv("CATEGORY_FALLBACK", "other_suspicious_activity").strip().lower().replace(" ", "_")
 if CATEGORY_FALLBACK not in ALLOWED_CATEGORY_CODES:
     ALLOWED_CATEGORY_CODES = [*ALLOWED_CATEGORY_CODES, CATEGORY_FALLBACK]
+
+
+DEFAULT_PRODUCT_TAG_CODES = [
+    "deposit_account",
+    "prepaid_card",
+    "wire_transfer",
+    "correspondent_account",
+    "trade_finance_instrument",
+    "loan_or_credit",
+    "digital_asset",
+    "cash",
+    "money_order",
+    "check",
+    "remittance_product",
+    "other_product",
+]
+
+DEFAULT_PRODUCT_TAG_SYNONYMS = {
+    "checking_account": "deposit_account",
+    "savings_account": "deposit_account",
+    "bank_account": "deposit_account",
+    "prepaid": "prepaid_card",
+    "debit_card": "prepaid_card",
+    "swift": "wire_transfer",
+    "mt103": "wire_transfer",
+    "correspondent_banking": "correspondent_account",
+    "letter_of_credit": "trade_finance_instrument",
+    "trade_finance": "trade_finance_instrument",
+    "crypto": "digital_asset",
+    "virtual_asset": "digital_asset",
+    "stablecoin": "digital_asset",
+    "cash_deposit": "cash",
+}
+
+DEFAULT_SERVICE_TAG_CODES = [
+    "funds_transfer_service",
+    "cash_deposit_service",
+    "cash_withdrawal_service",
+    "currency_exchange_service",
+    "account_opening_service",
+    "kyc_onboarding_service",
+    "trade_finance_processing_service",
+    "payment_processing_service",
+    "card_issuing_service",
+    "crypto_exchange_service",
+    "other_service",
+]
+
+DEFAULT_SERVICE_TAG_SYNONYMS = {
+    "money_transfer": "funds_transfer_service",
+    "wire_service": "funds_transfer_service",
+    "remittance_service": "funds_transfer_service",
+    "deposit_service": "cash_deposit_service",
+    "withdrawal_service": "cash_withdrawal_service",
+    "fx_service": "currency_exchange_service",
+    "account_opening": "account_opening_service",
+    "customer_onboarding": "kyc_onboarding_service",
+    "kyc": "kyc_onboarding_service",
+    "trade_finance": "trade_finance_processing_service",
+    "payments": "payment_processing_service",
+    "card_services": "card_issuing_service",
+    "crypto_trading": "crypto_exchange_service",
+}
+
+ALLOWED_PRODUCT_TAG_CODES = _csv_list_env("ALLOWED_PRODUCT_TAG_CODES", DEFAULT_PRODUCT_TAG_CODES)
+PRODUCT_TAG_SYNONYMS = DEFAULT_PRODUCT_TAG_SYNONYMS
+PRODUCT_TAG_FALLBACK = os.getenv("PRODUCT_TAG_FALLBACK", "other_product").strip().lower().replace(" ", "_")
+if PRODUCT_TAG_FALLBACK not in ALLOWED_PRODUCT_TAG_CODES:
+    ALLOWED_PRODUCT_TAG_CODES = [*ALLOWED_PRODUCT_TAG_CODES, PRODUCT_TAG_FALLBACK]
+
+ALLOWED_SERVICE_TAG_CODES = _csv_list_env("ALLOWED_SERVICE_TAG_CODES", DEFAULT_SERVICE_TAG_CODES)
+SERVICE_TAG_SYNONYMS = DEFAULT_SERVICE_TAG_SYNONYMS
+SERVICE_TAG_FALLBACK = os.getenv("SERVICE_TAG_FALLBACK", "other_service").strip().lower().replace(" ", "_")
+if SERVICE_TAG_FALLBACK not in ALLOWED_SERVICE_TAG_CODES:
+    ALLOWED_SERVICE_TAG_CODES = [*ALLOWED_SERVICE_TAG_CODES, SERVICE_TAG_FALLBACK]
 
 OPENAI_SYSTEM_PROMPT = os.getenv(
     "OPENAI_SYSTEM_PROMPT",

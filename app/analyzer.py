@@ -9,6 +9,8 @@ import requests
 
 from app.config import (
     ALLOWED_CATEGORY_CODES,
+    ALLOWED_PRODUCT_TAG_CODES,
+    ALLOWED_SERVICE_TAG_CODES,
     CATEGORY_FALLBACK,
     CATEGORY_SYNONYMS,
     OPENAI_API_KEY,
@@ -16,7 +18,12 @@ from app.config import (
     OPENAI_SYSTEM_PROMPT,
     OPENAI_TIMEOUT_SECONDS,
     OPENAI_USER_PROMPT_TEMPLATE,
+    PRODUCT_TAG_FALLBACK,
+    PRODUCT_TAG_SYNONYMS,
+    SERVICE_TAG_FALLBACK,
+    SERVICE_TAG_SYNONYMS,
 )
+from app.synonyms import load_synonym_bundle
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +31,7 @@ OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 MAX_INPUT_CHARS = 12000
 
 
-def _category_key(value: Any) -> str:
+def _norm_key(value: Any) -> str:
     raw = str(value or "").strip().lower()
     if not raw:
         return ""
@@ -33,31 +40,34 @@ def _category_key(value: Any) -> str:
     return raw
 
 
-def _normalize_category(value: Any) -> str:
-    key = _category_key(value)
+def _normalize_from_taxonomy(
+    value: Any,
+    allowed_codes: list[str],
+    synonyms: dict[str, str],
+    fallback: str,
+) -> str:
+    key = _norm_key(value)
     if not key:
-        return CATEGORY_FALLBACK
+        return fallback
 
-    if key in ALLOWED_CATEGORY_CODES:
+    if key in allowed_codes:
         return key
 
-    synonym_target = CATEGORY_SYNONYMS.get(key)
+    synonym_target = synonyms.get(key)
     if synonym_target:
-        return synonym_target if synonym_target in ALLOWED_CATEGORY_CODES else CATEGORY_FALLBACK
+        return synonym_target if synonym_target in allowed_codes else fallback
 
-    # Lightweight fuzzy fallback: "startswith"/token containment on canonical keys.
-    for canonical in ALLOWED_CATEGORY_CODES:
+    for canonical in allowed_codes:
         if key.startswith(canonical) or canonical.startswith(key):
             return canonical
 
     key_tokens = set(key.split("_"))
-    for canonical in ALLOWED_CATEGORY_CODES:
+    for canonical in allowed_codes:
         canonical_tokens = set(canonical.split("_"))
-        overlap = len(key_tokens & canonical_tokens)
-        if overlap >= 2:
+        if len(key_tokens & canonical_tokens) >= 2:
             return canonical
 
-    return CATEGORY_FALLBACK
+    return fallback
 
 
 def _normalize_severity(value: Any) -> str:
@@ -77,7 +87,12 @@ def _normalize_confidence(value: Any) -> int | None:
     return max(0, min(100, n))
 
 
-def _normalize_tags(value: Any) -> list[str]:
+def _raw_category_value(value: Any) -> str | None:
+    raw = str(value or "").strip()
+    return raw[:256] if raw else None
+
+
+def _raw_tags(value: Any, *, max_items: int = 10) -> list[str]:
     if value is None:
         return []
 
@@ -94,13 +109,46 @@ def _normalize_tags(value: Any) -> list[str]:
     for item in raw_items:
         if not item:
             continue
-        normalized = item[:64]
-        key = normalized.lower()
-        if key in seen:
+        normalized_key = _norm_key(item)
+        if normalized_key in seen:
             continue
-        seen.add(key)
+        seen.add(normalized_key)
+        cleaned.append(item[:128])
+        if len(cleaned) >= max_items:
+            break
+    return cleaned
+
+
+def _normalize_tags(
+    value: Any,
+    *,
+    allowed_codes: list[str],
+    synonyms: dict[str, str],
+    fallback: str,
+    max_items: int = 10,
+) -> list[str]:
+    if value is None:
+        return []
+
+    raw_items: list[str]
+    if isinstance(value, list):
+        raw_items = [str(v).strip() for v in value]
+    elif isinstance(value, str):
+        raw_items = [part.strip() for part in value.split(",")]
+    else:
+        raw_items = [str(value).strip()]
+
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for item in raw_items:
+        if not item:
+            continue
+        normalized = _normalize_from_taxonomy(item, allowed_codes, synonyms, fallback)
+        if normalized in seen:
+            continue
+        seen.add(normalized)
         cleaned.append(normalized)
-        if len(cleaned) >= 10:
+        if len(cleaned) >= max_items:
             break
     return cleaned
 
@@ -158,12 +206,29 @@ def extract_red_flags(text: str) -> list[dict]:
     if not isinstance(flags, list):
         raise RuntimeError("OpenAI response missing valid 'flags' array")
 
+    runtime = load_synonym_bundle()
+    category_synonyms = {**CATEGORY_SYNONYMS, **runtime.category_synonyms}
+    product_synonyms = {**PRODUCT_TAG_SYNONYMS, **runtime.product_synonyms}
+    service_synonyms = {**SERVICE_TAG_SYNONYMS, **runtime.service_synonyms}
+
+    allowed_category_codes = list(dict.fromkeys([*ALLOWED_CATEGORY_CODES, *sorted(runtime.category_canonicals)]))
+    allowed_product_codes = list(dict.fromkeys([*ALLOWED_PRODUCT_TAG_CODES, *sorted(runtime.product_canonicals)]))
+    allowed_service_codes = list(dict.fromkeys([*ALLOWED_SERVICE_TAG_CODES, *sorted(runtime.service_canonicals)]))
+
     normalized: list[dict] = []
     for item in flags:
         if not isinstance(item, dict):
             continue
 
-        category = _normalize_category(item.get("category"))
+        raw_category = _raw_category_value(item.get("category"))
+        category = _normalize_from_taxonomy(
+            raw_category,
+            allowed_category_codes,
+            category_synonyms,
+            CATEGORY_FALLBACK,
+        )
+        raw_product_tags = _raw_tags(item.get("product_tags"))
+        raw_service_tags = _raw_tags(item.get("service_tags"))
         description = str(item.get("text", "")).strip()
         if not description:
             continue
@@ -171,11 +236,24 @@ def extract_red_flags(text: str) -> list[dict]:
         normalized.append(
             {
                 "category": category[:128],
+                "raw_category": raw_category,
                 "severity": _normalize_severity(item.get("severity")),
                 "text": description[:4000],
                 "confidence_score": _normalize_confidence(item.get("confidence_score")),
-                "product_tags": _normalize_tags(item.get("product_tags")),
-                "service_tags": _normalize_tags(item.get("service_tags")),
+                "product_tags": _normalize_tags(
+                    raw_product_tags,
+                    allowed_codes=allowed_product_codes,
+                    synonyms=product_synonyms,
+                    fallback=PRODUCT_TAG_FALLBACK,
+                ),
+                "service_tags": _normalize_tags(
+                    raw_service_tags,
+                    allowed_codes=allowed_service_codes,
+                    synonyms=service_synonyms,
+                    fallback=SERVICE_TAG_FALLBACK,
+                ),
+                "raw_product_tags": raw_product_tags,
+                "raw_service_tags": raw_service_tags,
             }
         )
 

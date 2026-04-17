@@ -100,11 +100,14 @@ def _run_batch(batch_id: str) -> None:
                             RedFlag(
                                 document_id=doc.id,
                                 category=match["category"],
+                                raw_category=match.get("raw_category"),
                                 severity=match["severity"],
                                 text=match["text"],
                                 confidence_score=match["confidence_score"],
                                 product_tags_json=json.dumps(match.get("product_tags", []), separators=(",", ":")),
                                 service_tags_json=json.dumps(match.get("service_tags", []), separators=(",", ":")),
+                                raw_product_tags_json=json.dumps(match.get("raw_product_tags", []), separators=(",", ":")),
+                                raw_service_tags_json=json.dumps(match.get("raw_service_tags", []), separators=(",", ":")),
                             )
                         )
 

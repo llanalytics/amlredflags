@@ -46,11 +46,14 @@ class RedFlagCatalogItem(BaseModel):
     source_url: str
     source_title: str
     category: str
+    raw_category: str | None = None
     severity: str
     text: str
     confidence_score: int | None
     product_tags: list[str] = []
     service_tags: list[str] = []
+    raw_product_tags: list[str] = []
+    raw_service_tags: list[str] = []
     created_at: datetime | None
 
 

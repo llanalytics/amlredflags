@@ -41,14 +41,30 @@ class RedFlag(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     document_id: Mapped[int] = mapped_column(ForeignKey("source_documents.id"), index=True)
     category: Mapped[str] = mapped_column(String(128), index=True)
+    raw_category: Mapped[str | None] = mapped_column(String(256), nullable=True)
     severity: Mapped[str] = mapped_column(String(20), index=True)
     text: Mapped[str] = mapped_column(Text)
     confidence_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     product_tags_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     service_tags_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    raw_product_tags_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    raw_service_tags_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     document: Mapped[SourceDocument] = relationship(back_populates="red_flags")
+
+
+class RedFlagSynonym(Base):
+    __tablename__ = "red_flag_synonyms"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    scope: Mapped[str] = mapped_column(String(32), index=True)
+    raw_value: Mapped[str] = mapped_column(String(255))
+    raw_value_key: Mapped[str] = mapped_column(String(255), index=True)
+    canonical_value: Mapped[str] = mapped_column(String(128), index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Tenant(Base):

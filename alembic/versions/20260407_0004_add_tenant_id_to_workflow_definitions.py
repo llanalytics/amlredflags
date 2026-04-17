@@ -19,7 +19,10 @@ depends_on = None
 def _target_schema(bind) -> str | None:
     if bind.dialect.name == "sqlite":
         return None
-    return os.getenv("DB_SCHEMA", "amlredflags_v2")
+    raw = os.getenv("DB_SCHEMA", "amlredflags_v2").strip().strip("'\"")
+    if raw.lower() in {"", "none", "null"}:
+        return None
+    return raw
 
 
 def _fk(schema: str | None, table: str, column: str) -> str:

@@ -147,11 +147,14 @@ def list_redflags(limit: int = 100) -> dict:
                 {
                     "id": r.id,
                     "category": r.category,
+                    "raw_category": r.raw_category,
                     "severity": r.severity,
                     "text": r.text,
                     "confidence_score": r.confidence_score,
                     "product_tags": _parse_tags(r.product_tags_json),
                     "service_tags": _parse_tags(r.service_tags_json),
+                    "raw_product_tags": _parse_tags(r.raw_product_tags_json),
+                    "raw_service_tags": _parse_tags(r.raw_service_tags_json),
                     "created_at": r.created_at.isoformat() if r.created_at else None,
                 }
                 for r in rows
@@ -207,11 +210,14 @@ def list_red_flags_catalog(
                 source_url=doc.url,
                 source_title=doc.title,
                 category=flag.category,
+                raw_category=flag.raw_category,
                 severity=flag.severity,
                 text=flag.text,
                 confidence_score=flag.confidence_score,
                 product_tags=_parse_tags(flag.product_tags_json),
                 service_tags=_parse_tags(flag.service_tags_json),
+                raw_product_tags=_parse_tags(flag.raw_product_tags_json),
+                raw_service_tags=_parse_tags(flag.raw_service_tags_json),
                 created_at=flag.created_at,
             )
             for flag, doc in rows
@@ -250,11 +256,14 @@ def get_red_flag_catalog_item(catalog_id: int) -> RedFlagCatalogItem:
             source_url=doc.url,
             source_title=doc.title,
             category=flag.category,
+            raw_category=flag.raw_category,
             severity=flag.severity,
             text=flag.text,
             confidence_score=flag.confidence_score,
             product_tags=_parse_tags(flag.product_tags_json),
             service_tags=_parse_tags(flag.service_tags_json),
+            raw_product_tags=_parse_tags(flag.raw_product_tags_json),
+            raw_service_tags=_parse_tags(flag.raw_service_tags_json),
             created_at=flag.created_at,
         )
     except SQLAlchemyError as e:
