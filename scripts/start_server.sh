@@ -16,6 +16,7 @@ APP_MODULE="${APP_MODULE:-app.main:app}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ENV_FILE="$PROJECT_ROOT/.env"
+PATH="$PROJECT_ROOT/.venv/bin:$PATH"
 
 load_env_file() {
   local file="$1"
@@ -30,6 +31,11 @@ load_env_file() {
     local value="${line#*=}"
     key="$(printf '%s' "$key" | tr -d '[:space:]')"
     value="${value%$'\r'}"
+    if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+      value="${value:1:${#value}-2}"
+    elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+      value="${value:1:${#value}-2}"
+    fi
 
     case "$key" in
       DATABASE_URL)
@@ -110,4 +116,8 @@ Starting amlredflags:
 MSG
 
 cd "$PROJECT_ROOT"
+if [ -x "$PROJECT_ROOT/.venv/bin/uvicorn" ]; then
+  exec "$PROJECT_ROOT/.venv/bin/uvicorn" "$APP_MODULE" --host "$HOST" --port "$PORT" --reload
+fi
+
 exec uvicorn "$APP_MODULE" --host "$HOST" --port "$PORT" --reload
